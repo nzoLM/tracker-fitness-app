@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
+export const isGoogleEnabled = Boolean(googleClientId && googleClientSecret);
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   emailAndPassword: {
