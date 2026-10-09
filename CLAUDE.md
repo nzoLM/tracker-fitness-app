@@ -20,7 +20,7 @@ Mon entraînement :
 
 ## V1 (périmètre à respecter)
 1. **Créer mon programme** : jours (Push, Pull, jambes maison), exercices, séries et fourchette de reps visées
-2. **Saisir une séance** : ouvrir la séance du jour, remplir chaque série (poids, reps) au fur et à mesure
+2. **Saisir une séance** : ouvrir la séance du jour, remplir chaque série (poids, reps) au fur et à mesure, avec un chronomètre déjà fait pour chaque exercice à lancer (modifiable si besoin)
 3. **Historique et bilan de la semaine** : séances prévues vs réalisées, séance(s) manquée(s)
 
 Les exercices au poids du corps se suivent en reps ou en variante (progression), pas seulement en charge.

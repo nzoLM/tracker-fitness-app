@@ -83,6 +83,7 @@ model Verification {
 enum TrackingType {
   WEIGHTED // suivi en charge (barre, haltères, machines)
   BODYWEIGHT // suivi en reps et en variante de progression
+  BOTH // poids du corps lesté : reps, variante et lest facultatif
 }
 
 enum MuscleRole {
@@ -105,6 +106,8 @@ model Exercise {
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   name         String
   trackingType TrackingType
+  // Reps comptées par bras / jambe (ex. rowing haltère, pistol squat)
+  isUnilateral Boolean      @default(false)
   notes        String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -162,33 +165,44 @@ model Program {
   @@map("program")
 }
 
-// Les jours hors bonus s'enchaînent en rotation selon `position`.
-// Les jours bonus (jambes maison) ne comptent pas dans `sessionsPerWeek`.
+// Rotation : les places `rotationSlot` s'enchaînent dans l'ordre (1 Pull, 2 Push, 1 Pull…).
+// Plusieurs jours peuvent partager une place (Pull court / Pull complet) et sont alors interchangeables.
+// Seuls les jours en rotation comptent dans `sessionsPerWeek` ; les autres (jambes maison) sont des bonus.
 model ProgramDay {
-  id        String            @id @default(cuid())
-  programId String
-  program   Program           @relation(fields: [programId], references: [id], onDelete: Cascade)
-  name      String
-  position  Int
-  isBonus   Boolean           @default(false)
-  exercises ProgramExercise[]
-  workouts  Workout[]
+  id           String            @id @default(cuid())
+  programId    String
+  program      Program           @relation(fields: [programId], references: [id], onDelete: Cascade)
+  name         String
+  // Ordre d'affichage
+  position     Int
+  // null = hors rotation (bonus)
+  rotationSlot Int?
+  exercises    ProgramExercise[]
+  workouts     Workout[]
 
   @@unique([programId, position])
   @@map("program_day")
 }
 
 model ProgramExercise {
-  id           String     @id @default(cuid())
-  programDayId String
-  programDay   ProgramDay @relation(fields: [programDayId], references: [id], onDelete: Cascade)
-  exerciseId   String
-  exercise     Exercise   @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
-  position     Int
-  targetSets   Int
-  repMin       Int
-  repMax       Int
-  restSeconds  Int?
+  id            String     @id @default(cuid())
+  programDayId  String
+  programDay    ProgramDay @relation(fields: [programDayId], references: [id], onDelete: Cascade)
+  exerciseId    String
+  exercise      Exercise   @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  position      Int
+  targetSets    Int
+  // Les deux à null = max reps propres
+  repMin        Int?
+  repMax        Int?
+  // Repos par défaut du chronomètre, modifiable en séance
+  restSeconds   Int?
+  // Exercices du même jour avec le même numéro enchaînés en superset ;
+  // le repos est celui du dernier exercice du superset
+  supersetGroup Int?
+  // Consignes propres à cette séance (tempo, seuil pour ajouter du lest…)
+  notes         String?
+  sets          SetLog[]
 
   @@unique([programDayId, position])
   @@map("program_exercise")
@@ -213,19 +227,24 @@ model Workout {
 }
 
 model SetLog {
-  id         String           @id @default(cuid())
-  workoutId  String
-  workout    Workout          @relation(fields: [workoutId], references: [id], onDelete: Cascade)
-  exerciseId String
-  exercise   Exercise         @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
-  setNumber  Int
-  reps       Int
-  // Charge en kg, ou lest pour un exercice au poids du corps ; null sinon
-  weightKg   Float?
-  variantId  String?
-  variant    ExerciseVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
-  createdAt  DateTime         @default(now())
+  id                String           @id @default(cuid())
+  workoutId         String
+  workout           Workout          @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exerciseId        String
+  exercise          Exercise         @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  // Bloc du programme d'origine : distingue un même exercice fait deux fois
+  // dans une séance (dips lestés puis dips volume) ; null si le bloc est supprimé
+  programExerciseId String?
+  programExercise   ProgramExercise? @relation(fields: [programExerciseId], references: [id], onDelete: SetNull)
+  setNumber         Int
+  reps              Int
+  // Charge en kg (WEIGHTED) ou lest (BOTH) ; null si aucune charge
+  weightKg          Float?
+  variantId         String?
+  variant           ExerciseVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  createdAt         DateTime         @default(now())
 
-  @@unique([workoutId, exerciseId, setNumber])
+  @@unique([workoutId, programExerciseId, setNumber])
+  @@index([exerciseId])
   @@map("set_log")
 }
