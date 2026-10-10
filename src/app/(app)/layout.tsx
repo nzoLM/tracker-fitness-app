@@ -10,7 +10,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-10 border-b border-foreground/10 bg-background/90 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-xl items-center justify-between px-4">
           <span className="text-sm font-semibold uppercase tracking-widest text-foreground">
-            Tracker Push/Pull
+            Tracker program
           </span>
           <SignOutButton />
         </div>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { AuthForm } from "@/components/auth-form";
 import { isGoogleEnabled } from "@/lib/auth";
 
-export const metadata: Metadata = { title: "Connexion · Tracker Push/Pull" };
+export const metadata: Metadata = { title: "Connexion · Tracker program" };
 
 export default function SignInPage() {
   return (

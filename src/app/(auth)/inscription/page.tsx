@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { AuthForm } from "@/components/auth-form";
 import { isGoogleEnabled } from "@/lib/auth";
 
-export const metadata: Metadata = { title: "Inscription · Tracker Push/Pull" };
+export const metadata: Metadata = { title: "Inscription · Tracker program" };
 
 export default function SignUpPage() {
   return (

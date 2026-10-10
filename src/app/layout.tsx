@@ -8,8 +8,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tracker Push/Pull",
-  description: "Suivi de séances de musculation et respect du programme Push/Pull",
+  title: "Tracker program",
+  description: "Suivi de séances de musculation et respect du programme program",
 };
 
 export const viewport: Viewport = {

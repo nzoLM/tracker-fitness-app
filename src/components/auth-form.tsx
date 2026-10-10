@@ -21,7 +21,7 @@ function toMessage(error: { code?: string }) {
 }
 
 const inputClass =
-  "h-12 w-full rounded-xl border border-foreground/20 bg-card px-4 text-base outline-none focus:border-foreground";
+  "h-12 w-full border-b-2 border-foreground px-4 text-base outline-none focus:border-foreground";
 
 export function AuthForm({ mode, googleEnabled }: { mode: Mode; googleEnabled: boolean }) {
   const router = useRouter();
