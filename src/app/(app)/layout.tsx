@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { BottomNav } from "@/components/bottom-nav";
 import { SignOutButton } from "@/components/sign-out-button";
 
 // Layout statique : il ne lit pas la session, pour que l'en-tête s'affiche tout de suite.
@@ -15,7 +16,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <SignOutButton />
         </div>
       </header>
-      <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">{children}</main>
+      {/* pb : hauteur de la barre de navigation fixe */}
+      <main className="mx-auto w-full max-w-xl flex-1 px-4 pt-6 pb-24">{children}</main>
+      <BottomNav />
     </>
   );
 }
