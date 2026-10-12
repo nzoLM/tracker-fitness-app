@@ -49,6 +49,8 @@ export function AuthForm({ mode, googleEnabled }: { mode: Mode; googleEnabled: b
     }
     router.replace("/");
     router.refresh();
+    setPending(false);
+
   }
 
   async function handleGoogle() {
@@ -104,7 +106,10 @@ export function AuthForm({ mode, googleEnabled }: { mode: Mode; googleEnabled: b
           disabled={pending}
           className="cursor-pointer h-12 rounded-xl bg-foreground text-base font-semibold text-background disabled:opacity-60"
         >
-          {isSignUp ? "Créer mon compte" : "Se connecter"}
+          {
+            pending ? "Connexion en cours..." :
+              ( isSignUp ? "Créer mon compte": "Se connecter" )
+          }
         </button>
       </form>
 
