@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { ExerciseGroups } from "@/components/program-day";
+import { WorkoutLogger } from "@/components/workout-logger";
 import { formatDay, formatTime } from "@/lib/dates";
 import { requireSession } from "@/lib/session";
 import { getWorkout } from "@/lib/workout";
@@ -21,8 +21,9 @@ export default function WorkoutPage({ params }: PageProps<"/seance/[id]">) {
 async function WorkoutContent({ params }: { params: PageProps<"/seance/[id]">["params"] }) {
   const { id } = await params;
   const { user } = await requireSession();
-  const workout = await getWorkout(user.id, id);
-  if (!workout) notFound();
+  const data = await getWorkout(user.id, id);
+  if (!data) notFound();
+  const { workout, sets, previousSets } = data;
 
   return (
     <>
@@ -32,11 +33,19 @@ async function WorkoutContent({ params }: { params: PageProps<"/seance/[id]">["p
         {workout.finishedAt && `, terminée à ${formatTime(workout.finishedAt)}`}
       </p>
 
-      {workout.programDay ? (
-        <ExerciseGroups blocks={workout.programDay.exercises} className="mt-6" />
-      ) : (
-        <p className="mt-6 text-muted-foreground">Ce jour a été retiré du programme.</p>
-      )}
+      <div className="mt-6">
+        {workout.programDay ? (
+          <WorkoutLogger
+            workoutId={workout.id}
+            isFinished={workout.finishedAt !== null}
+            blocks={workout.programDay.exercises}
+            sets={sets}
+            previousSets={previousSets}
+          />
+        ) : (
+          <p className="text-muted-foreground">Ce jour a été retiré du programme.</p>
+        )}
+      </div>
     </>
   );
 }
@@ -46,7 +55,7 @@ function WorkoutSkeleton() {
     <div className="flex flex-col gap-4">
       <div className="h-8 w-48 animate-pulse rounded-lg bg-foreground/20" />
       {Array.from({ length: 4 }, (_, i) => (
-        <div key={i} className="h-24 animate-pulse rounded-lg bg-foreground/10" />
+        <div key={i} className="h-40 animate-pulse rounded-xl bg-foreground/10" />
       ))}
     </div>
   );

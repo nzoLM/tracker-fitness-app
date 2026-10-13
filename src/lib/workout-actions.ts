@@ -29,3 +29,60 @@ export async function startWorkout(formData: FormData) {
 
   redirect(`/seance/${workout.id}`);
 }
+
+export type SaveSetInput = {
+  workoutId: string;
+  programExerciseId: string;
+  setNumber: number;
+  reps: number;
+  weightKg: number | null;
+  variantId: string | null;
+};
+
+// Crée ou corrige une série ; renvoie une erreur lisible plutôt que de lever,
+// pour l'afficher sur la ligne concernée
+export async function saveSet(input: SaveSetInput): Promise<{ error?: string }> {
+  const { user } = await requireSession();
+  const { workoutId, programExerciseId, setNumber, reps, weightKg, variantId } = input;
+
+  if (!Number.isInteger(setNumber) || setNumber < 1 || setNumber > 30) {
+    return { error: "Numéro de série invalide." };
+  }
+  if (!Number.isInteger(reps) || reps < 1 || reps > 500) return { error: "Reps invalides." };
+  if (weightKg !== null && (!Number.isFinite(weightKg) || weightKg < 0 || weightKg > 1000)) {
+    return { error: "Charge invalide." };
+  }
+
+  // Le bloc doit appartenir au jour de cette séance, elle-même à l'utilisateur
+  const block = await prisma.programExercise.findFirst({
+    where: { id: programExerciseId, programDay: { workouts: { some: { id: workoutId, userId: user.id } } } },
+    select: { exerciseId: true, exercise: { select: { variants: { select: { id: true } } } } },
+  });
+  if (!block) return { error: "Exercice introuvable dans cette séance." };
+  if (variantId !== null && !block.exercise.variants.some((variant) => variant.id === variantId)) {
+    return { error: "Variante invalide." };
+  }
+
+  await prisma.setLog.upsert({
+    where: { workoutId_programExerciseId_setNumber: { workoutId, programExerciseId, setNumber } },
+    update: { reps, weightKg, variantId },
+    create: { workoutId, programExerciseId, exerciseId: block.exerciseId, setNumber, reps, weightKg, variantId },
+  });
+  return {};
+}
+
+export async function finishWorkout(workoutId: string) {
+  const { user } = await requireSession();
+  await prisma.workout.updateMany({
+    where: { id: workoutId, userId: user.id, finishedAt: null },
+    data: { finishedAt: new Date() },
+  });
+  redirect("/");
+}
+
+// Supprime la séance en cours et ses séries (démarrée par erreur)
+export async function cancelWorkout(workoutId: string) {
+  const { user } = await requireSession();
+  await prisma.workout.deleteMany({ where: { id: workoutId, userId: user.id, finishedAt: null } });
+  redirect("/");
+}

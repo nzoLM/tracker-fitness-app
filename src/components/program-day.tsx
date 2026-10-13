@@ -1,12 +1,7 @@
 import { Timer } from "lucide-react";
 import type { TrackingType } from "@/generated/prisma/enums";
-import {
-  formatReps,
-  formatRest,
-  groupBySuperset,
-  type ProgramBlock,
-  type ProgramDayWithExercises,
-} from "@/lib/program";
+import type { ProgramBlock, ProgramDayWithExercises } from "@/lib/program";
+import { formatReps, formatRest, groupBySuperset } from "@/lib/program-format";
 import { cn } from "@/lib/utils";
 
 const TRACKING_LABELS: Record<TrackingType, string> = {
@@ -82,7 +77,8 @@ export function ExerciseGroups({ blocks, className }: { blocks: ProgramBlock[]; 
   );
 }
 
-function ExerciseBlock({ block }: { block: ProgramBlock }) {
+// Sans hooks ni accès serveur : réutilisé dans la saisie de séance (composant client)
+export function ExerciseBlock({ block }: { block: ProgramBlock }) {
   const { exercise } = block;
   const muscles = exercise.muscles.map((m) => m.muscleGroup.name).join(", ");
 

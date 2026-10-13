@@ -1,4 +1,5 @@
 import "server-only";
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { programDayInclude } from "@/lib/program";
 
@@ -49,9 +50,64 @@ export async function getTodayPlan(userId: string) {
 
 export type TodayPlan = NonNullable<Awaited<ReturnType<typeof getTodayPlan>>>;
 
+const workoutInclude = {
+  sets: { orderBy: { setNumber: "asc" } },
+  programDay: {
+    include: {
+      exercises: {
+        ...programDayInclude.exercises,
+        include: {
+          exercise: {
+            include: {
+              ...programDayInclude.exercises.include.exercise.include,
+              variants: { orderBy: { level: "asc" } },
+            },
+          },
+        },
+      },
+    },
+  },
+} satisfies Prisma.WorkoutInclude;
+
+export type WorkoutWithDay = Prisma.WorkoutGetPayload<{ include: typeof workoutInclude }>;
+export type WorkoutBlock = NonNullable<WorkoutWithDay["programDay"]>["exercises"][number];
+
+export type LoggedSet = {
+  programExerciseId: string | null;
+  setNumber: number;
+  reps: number;
+  weightKg: number | null;
+  variantId: string | null;
+};
+
+function toLoggedSet({ programExerciseId, setNumber, reps, weightKg, variantId }: LoggedSet): LoggedSet {
+  return { programExerciseId, setNumber, reps, weightKg, variantId };
+}
+
+// La séance et, pour rappel, les séries de la précédente séance du même jour
 export async function getWorkout(userId: string, workoutId: string) {
-  return prisma.workout.findFirst({
+  const workout = await prisma.workout.findFirst({
     where: { id: workoutId, userId },
-    include: { programDay: { include: programDayInclude } },
+    include: workoutInclude,
   });
+  if (!workout) return null;
+
+  const previous = workout.programDayId
+    ? await prisma.workout.findFirst({
+        where: {
+          userId,
+          programDayId: workout.programDayId,
+          startedAt: { lt: workout.startedAt },
+          sets: { some: {} },
+        },
+        orderBy: { startedAt: "desc" },
+        include: { sets: { orderBy: { setNumber: "asc" } } },
+      })
+    : null;
+
+  return {
+    workout,
+    sets: workout.sets.map(toLoggedSet),
+    previousSets: previous?.sets.map(toLoggedSet) ?? [],
+  };
 }
