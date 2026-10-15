@@ -36,3 +36,29 @@ export async function getActiveProgram(userId: string) {
     include: programInclude,
   });
 }
+
+// Un jour à modifier, le catalogue d'exercices et les autres jours (pour la rotation)
+export async function getDayForEdit(userId: string, dayId: string) {
+  const day = await prisma.programDay.findFirst({
+    where: { id: dayId, program: { userId } },
+    include: {
+      exercises: { orderBy: { position: "asc" } },
+      program: {
+        select: { days: { orderBy: { position: "asc" }, select: { id: true, name: true, rotationSlot: true } } },
+      },
+    },
+  });
+  if (!day) return null;
+
+  const [exercises, muscleGroups] = await Promise.all([
+    prisma.exercise.findMany({
+      where: { userId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, trackingType: true, isUnilateral: true },
+    }),
+    prisma.muscleGroup.findMany({ orderBy: { name: "asc" } }),
+  ]);
+  return { day, exercises, muscleGroups };
+}
+
+export type DayForEdit = NonNullable<Awaited<ReturnType<typeof getDayForEdit>>>;

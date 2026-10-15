@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { formatDay, formatTime } from "@/lib/dates";
+import { durationLabel, estimateDurationSeconds } from "@/lib/program-format";
 import { requireSession } from "@/lib/session";
 import { getTodayPlan, type TodayPlan } from "@/lib/workout";
 import { startWorkout } from "@/lib/workout-actions";
@@ -42,7 +43,7 @@ async function Home() {
         ) : (
           <>
             <TodaySuggestion plan={plan} />
-            <OtherDays days={plan.otherDays} />
+            <OtherDays days={plan.otherDays} durations={plan.durations} />
           </>
         )}
       </div>
@@ -95,7 +96,8 @@ function TodaySuggestion({ plan }: { plan: TodayPlan }) {
           <input type="hidden" name="programDayId" value={day.id} />
           <div>
             <h3 className="text-lg font-bold">{day.name}</h3>
-            <span className="text-xs text-muted-foreground">{day._count.exercises} exercices</span>
+            <span className="block text-xs text-muted-foreground">{day.exercises.length} exercices</span>
+            <span className="block text-xs text-muted-foreground">{dayDuration(day, plan.durations)}</span>
           </div>
           <SubmitButton pendingLabel="Démarrage..." className={primaryButton}>
             Commencer
@@ -106,7 +108,7 @@ function TodaySuggestion({ plan }: { plan: TodayPlan }) {
   );
 }
 
-function OtherDays({ days }: { days: TodayPlan["otherDays"] }) {
+function OtherDays({ days, durations }: { days: TodayPlan["otherDays"]; durations: TodayPlan["durations"] }) {
   if (days.length === 0) return null;
 
   return (
@@ -119,10 +121,11 @@ function OtherDays({ days }: { days: TodayPlan["otherDays"] }) {
               <input type="hidden" name="programDayId" value={day.id} />
               <div className="min-w-0">
                 <h3 className="font-semibold wrap-break-word">{day.name}</h3>
-                <span className="text-xs text-muted-foreground">
+                <span className="block text-xs text-muted-foreground">
                   {day.rotationSlot === null ? "Bonus" : `Rotation ${day.rotationSlot}`} ·{" "}
-                  {day._count.exercises} exercices
+                  {day.exercises.length} exercices
                 </span>
+                <span className="block text-xs text-muted-foreground">{dayDuration(day, durations)}</span>
               </div>
               <SubmitButton pendingLabel="..." className={secondaryButton}>
                 Commencer
@@ -133,6 +136,10 @@ function OtherDays({ days }: { days: TodayPlan["otherDays"] }) {
       </ul>
     </section>
   );
+}
+
+function dayDuration(day: TodayPlan["otherDays"][number], durations: TodayPlan["durations"]) {
+  return durationLabel(estimateDurationSeconds(day.exercises), durations.get(day.id));
 }
 
 function HomeSkeleton() {

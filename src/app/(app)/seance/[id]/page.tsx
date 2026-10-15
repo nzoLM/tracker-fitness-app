@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { WorkoutLogger } from "@/components/workout-logger";
 import { formatDay, formatTime } from "@/lib/dates";
+import { durationLabel, estimateDurationSeconds } from "@/lib/program-format";
 import { requireSession } from "@/lib/session";
-import { getWorkout } from "@/lib/workout";
+import { getAverageDurations, getWorkout } from "@/lib/workout";
 
 export const metadata: Metadata = {
   title: "Séance · Tracker program",
@@ -24,6 +25,9 @@ async function WorkoutContent({ params }: { params: PageProps<"/seance/[id]">["p
   const data = await getWorkout(user.id, id);
   if (!data) notFound();
   const { workout, sets, previousSets } = data;
+  const averages = workout.programDay
+    ? await getAverageDurations(user.id, [workout.programDay.id])
+    : null;
 
   return (
     <>
@@ -32,6 +36,11 @@ async function WorkoutContent({ params }: { params: PageProps<"/seance/[id]">["p
         {formatDay(workout.startedAt)}, commencée à {formatTime(workout.startedAt)}
         {workout.finishedAt && `, terminée à ${formatTime(workout.finishedAt)}`}
       </p>
+      {workout.programDay && averages && (
+        <p className="mt-1 text-sm text-muted-foreground">
+          Durée {durationLabel(estimateDurationSeconds(workout.programDay.exercises), averages.get(workout.programDay.id))}
+        </p>
+      )}
 
       <div className="mt-6">
         {workout.programDay ? (

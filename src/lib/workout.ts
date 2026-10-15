@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import type { AverageDuration } from "@/lib/program-format";
 import { programDayInclude } from "@/lib/program";
 
 const workoutDayInclude = { programDay: { select: { id: true, name: true, rotationSlot: true } } };
@@ -13,13 +14,23 @@ export async function getTodayPlan(userId: string) {
     include: {
       days: {
         orderBy: { position: "asc" },
-        include: { _count: { select: { exercises: true } } },
+        include: {
+          exercises: {
+            orderBy: { position: "asc" },
+            select: {
+              targetSets: true,
+              restSeconds: true,
+              supersetGroup: true,
+              exercise: { select: { isUnilateral: true } },
+            },
+          },
+        },
       },
     },
   });
   if (!program) return null;
 
-  const [inProgress, lastRotationWorkout] = await Promise.all([
+  const [inProgress, lastRotationWorkout, durations] = await Promise.all([
     prisma.workout.findFirst({
       where: { userId, finishedAt: null },
       orderBy: { startedAt: "desc" },
@@ -30,6 +41,10 @@ export async function getTodayPlan(userId: string) {
       orderBy: { startedAt: "desc" },
       include: workoutDayInclude,
     }),
+    getAverageDurations(
+      userId,
+      program.days.map((day) => day.id),
+    ),
   ]);
 
   const slots = [...new Set(program.days.flatMap((day) => day.rotationSlot ?? []))].sort((a, b) => a - b);
@@ -43,6 +58,7 @@ export async function getTodayPlan(userId: string) {
     program,
     inProgress,
     lastRotationWorkout,
+    durations,
     suggestedDays: program.days.filter((day) => day.rotationSlot !== null && day.rotationSlot === nextSlot),
     otherDays: program.days.filter((day) => day.rotationSlot === null || day.rotationSlot !== nextSlot),
   };
@@ -110,4 +126,34 @@ export async function getWorkout(userId: string, workoutId: string) {
     sets: workout.sets.map(toLoggedSet),
     previousSets: previous?.sets.map(toLoggedSet) ?? [],
   };
+}
+
+// Durées hors de cet intervalle écartées : séance terminée en retard (bouton oublié) ou abandonnée
+const MIN_PLAUSIBLE_SECONDS = 10 * 60;
+const MAX_PLAUSIBLE_SECONDS = 3 * 60 * 60;
+// Moyenne sur les dernières séances, pour suivre l'évolution du rythme
+const AVERAGE_OVER = 5;
+
+// Durée moyenne réelle des dernières séances terminées, par jour du programme
+export async function getAverageDurations(userId: string, programDayIds: string[]) {
+  const workouts = await prisma.workout.findMany({
+    where: { userId, programDayId: { in: programDayIds }, finishedAt: { not: null } },
+    orderBy: { startedAt: "desc" },
+    select: { programDayId: true, startedAt: true, finishedAt: true },
+    take: 200,
+  });
+
+  const byDay = new Map<string, number[]>();
+  for (const { programDayId, startedAt, finishedAt } of workouts) {
+    const seconds = (finishedAt!.getTime() - startedAt.getTime()) / 1000;
+    if (!programDayId || seconds < MIN_PLAUSIBLE_SECONDS || seconds > MAX_PLAUSIBLE_SECONDS) continue;
+    const list = byDay.get(programDayId) ?? [];
+    if (list.length < AVERAGE_OVER) byDay.set(programDayId, [...list, seconds]);
+  }
+
+  const averages = new Map<string, AverageDuration>();
+  for (const [dayId, list] of byDay) {
+    averages.set(dayId, { seconds: list.reduce((a, b) => a + b, 0) / list.length, count: list.length });
+  }
+  return averages;
 }

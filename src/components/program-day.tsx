@@ -1,4 +1,5 @@
-import { Timer } from "lucide-react";
+import Link from "next/link";
+import { Pencil, Timer } from "lucide-react";
 import type { TrackingType } from "@/generated/prisma/enums";
 import type { ProgramBlock, ProgramDayWithExercises } from "@/lib/program";
 import { formatReps, formatRest, groupBySuperset } from "@/lib/program-format";
@@ -13,11 +14,13 @@ const TRACKING_LABELS: Record<TrackingType, string> = {
 export function ProgramDay({
   day,
   alternatives,
+  duration,
   defaultOpen,
 }: {
   day: ProgramDayWithExercises;
   // Autres jours de la même place de rotation, interchangeables avec celui-ci
   alternatives: string[];
+  duration: string;
   defaultOpen: boolean;
 }) {
   const rotationLabel =
@@ -32,16 +35,26 @@ export function ProgramDay({
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
         <div className="min-w-0">
           <h2 className="text-lg font-bold wrap-break-word">{day.name}</h2>
-          <span className="text-xs text-muted-foreground">
+          <span className="block text-xs text-muted-foreground">
             {rotationLabel} · {day.exercises.length} exercices
           </span>
+          <span className="block text-xs text-muted-foreground">{duration}</span>
         </div>
         <span aria-hidden className="text-muted-foreground transition-transform group-open:rotate-90">
           ›
         </span>
       </summary>
 
-      <ExerciseGroups blocks={day.exercises} className="px-4 pb-4" />
+      <ExerciseGroups blocks={day.exercises} className="px-4" />
+      <div className="flex justify-end p-4">
+        <Link
+          href={`/programme/${day.id}`}
+          className="flex h-10 items-center gap-1.5 rounded-lg border border-foreground/20 px-4 text-sm font-medium"
+        >
+          <Pencil className="size-4" aria-hidden />
+          Modifier
+        </Link>
+      </div>
     </details>
   );
 }

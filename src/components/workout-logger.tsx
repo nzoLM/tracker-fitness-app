@@ -5,13 +5,11 @@ import { Check, Plus } from "lucide-react";
 import type { TrackingType } from "@/generated/prisma/enums";
 import { ExerciseBlock } from "@/components/program-day";
 import { RestLauncher, RestTimerBar, useRestTimer } from "@/components/rest-timer";
-import { formatWeight, groupBySuperset } from "@/lib/program-format";
+import { DEFAULT_REST_SECONDS, formatWeight, groupBySuperset } from "@/lib/program-format";
 import { cn } from "@/lib/utils";
 import type { LoggedSet, WorkoutBlock } from "@/lib/workout";
 import { cancelWorkout, finishWorkout, saveSet } from "@/lib/workout-actions";
 
-// Repos proposé quand le programme n'en précise pas
-const DEFAULT_REST_SECONDS = 90;
 const MAX_SETS = 30;
 
 export function WorkoutLogger({
