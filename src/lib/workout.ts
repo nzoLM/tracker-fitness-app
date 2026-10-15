@@ -1,5 +1,6 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
+import { addWeeks, startOfWeek } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import type { AverageDuration } from "@/lib/program-format";
 import { programDayInclude } from "@/lib/program";
@@ -156,4 +157,93 @@ export async function getAverageDurations(userId: string, programDayIds: string[
     averages.set(dayId, { seconds: list.reduce((a, b) => a + b, 0) / list.length, count: list.length });
   }
   return averages;
+}
+
+// Semaines affichées dans l'historique, semaine en cours comprise
+const HISTORY_WEEKS = 8;
+
+export type HistoryWorkout = {
+  id: string;
+  startedAt: Date;
+  finishedAt: Date;
+  dayName: string | null;
+  isBonus: boolean;
+  setCount: number;
+};
+
+export type WeekSummary = {
+  start: Date;
+  isCurrent: boolean;
+  planned: number;
+  // Séances de la rotation terminées ; les bonus (jambes maison) sont comptés à part
+  done: number;
+  bonus: number;
+  // null pour la semaine en cours, qui n'est pas finie
+  missed: number | null;
+  workouts: HistoryWorkout[];
+};
+
+// Bilan des dernières semaines (lundi à dimanche, heure de Paris), la plus récente en premier.
+// Seules les séances terminées comptent. La rotation et l'objectif sont ceux du programme actuel :
+// une séance dont le jour a été supprimé compte dans l'objectif, faute de savoir s'il était en rotation.
+export async function getWeeklyHistory(userId: string, now: Date) {
+  const currentWeek = startOfWeek(now);
+  const oldestWeek = addWeeks(currentWeek, -(HISTORY_WEEKS - 1));
+
+  const [program, firstWorkout, workouts] = await Promise.all([
+    prisma.program.findFirst({ where: { userId, isActive: true }, select: { sessionsPerWeek: true } }),
+    prisma.workout.findFirst({
+      where: { userId, finishedAt: { not: null } },
+      orderBy: { startedAt: "asc" },
+      select: { startedAt: true },
+    }),
+    prisma.workout.findMany({
+      where: { userId, finishedAt: { not: null }, startedAt: { gte: oldestWeek } },
+      orderBy: { startedAt: "desc" },
+      select: {
+        id: true,
+        startedAt: true,
+        finishedAt: true,
+        programDay: { select: { name: true, rotationSlot: true } },
+        _count: { select: { sets: true } },
+      },
+    }),
+  ]);
+  if (!program) return null;
+
+  // Pas de semaines vides (donc « manquées ») avant la toute première séance
+  const firstWeek = firstWorkout ? startOfWeek(firstWorkout.startedAt) : currentWeek;
+  const weeks: WeekSummary[] = [];
+
+  for (let offset = 0; offset < HISTORY_WEEKS; offset++) {
+    const start = addWeeks(currentWeek, -offset);
+    if (start < firstWeek) break;
+    const end = addWeeks(start, 1);
+
+    const weekWorkouts = workouts
+      .filter((workout) => workout.startedAt >= start && workout.startedAt < end)
+      .map((workout) => ({
+        id: workout.id,
+        startedAt: workout.startedAt,
+        finishedAt: workout.finishedAt!,
+        dayName: workout.programDay?.name ?? null,
+        isBonus: workout.programDay !== null && workout.programDay.rotationSlot === null,
+        setCount: workout._count.sets,
+      }));
+    const bonus = weekWorkouts.filter((workout) => workout.isBonus).length;
+    const done = weekWorkouts.length - bonus;
+    const isCurrent = offset === 0;
+
+    weeks.push({
+      start,
+      isCurrent,
+      planned: program.sessionsPerWeek,
+      done,
+      bonus,
+      missed: isCurrent ? null : Math.max(0, program.sessionsPerWeek - done),
+      workouts: weekWorkouts,
+    });
+  }
+
+  return weeks;
 }

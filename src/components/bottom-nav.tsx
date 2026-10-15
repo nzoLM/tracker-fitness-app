@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense } from "react";
-import { ClipboardList, House } from "lucide-react";
+import { ClipboardList, History, House } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "/", label: "Accueil", icon: House },
+  { href: "/historique", label: "Historique", icon: History },
   { href: "/programme", label: "Programme", icon: ClipboardList },
 ] as const;
 
